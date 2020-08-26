@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 
 const TARGET_VALUE = 10000
@@ -7,6 +7,7 @@ const getCost = (baseCost, level, pow = 1.15) =>
 
 function App() {
   const intervalRef = useRef()
+  const interval2Ref = useRef()
   const [state, setState] = useState({
     progress: 0,
     money: 0,
@@ -53,15 +54,24 @@ function App() {
 
   const onTick = () => {
     setState((oldState) => {
-      const penalty = 1 - oldState.progress / TARGET_VALUE
       return {
         ...oldState,
-        progress:
-          oldState.progress + oldState.level * oldState.upgrade * penalty,
         money: oldState.money + oldState.level * oldState.upgrade,
       }
     })
   }
+
+  const onTick2 = useCallback(() => {
+    const tick = 1000 - state.tickLevel * 100
+    setState((oldState) => {
+      const penalty = 1 - oldState.progress / TARGET_VALUE
+      const increment = oldState.level * oldState.upgrade * penalty
+      return {
+        ...oldState,
+        progress: oldState.progress + increment / (tick / 10),
+      }
+    })
+  }, [state.tickLevel])
 
   useEffect(() => {
     const tick = 1000 - state.tickLevel * 100
@@ -72,20 +82,28 @@ function App() {
     }
   }, [state.tickLevel])
 
+  useEffect(() => {
+    interval2Ref.current && clearInterval(interval2Ref.current)
+    interval2Ref.current = setInterval(onTick2, 10)
+    return () => {
+      clearInterval(interval2Ref.current)
+    }
+  }, [onTick2])
+
+  const percent = Math.min(100, (state.progress + 1) / 100)
+
   return (
     <div>
       <div className="menu">
-        <p style={{ margin: '10px 0' }}>money: ${state.money}</p>
-        <p style={{ margin: '10px 0' }}>
-          progress: {Math.min(100, (state.progress + 1) / 100).toFixed(4) + '%'}
-        </p>
+        <p style={{ margin: '10px' }}>money: ${state.money}</p>
+        <p style={{ margin: '10px' }}>progress: {percent.toFixed(4) + '%'}</p>
         {Object.keys(costs).map(
           (key) =>
             state.progress >= unlocks[key] && (
               <div
                 key={key}
                 style={{
-                  margin: '10px 0',
+                  margin: '10px',
                   display: 'flex',
                   height: 40,
                   alignItems: 'center',
@@ -106,16 +124,18 @@ function App() {
         )}
       </div>
       <section>
-        <p
-          style={{
-            fontSize: 200,
-            transform: `scale(${Math.max(1, TARGET_VALUE - state.progress)})`,
-            left: 20,
-            top: 100,
-          }}
-        >
-          If you can read this you win!
-        </p>
+        <div className="container">
+          <p
+            style={{
+              fontSize: '10vw',
+              transform: `scale(${Math.max(1, TARGET_VALUE - state.progress)})`,
+              left: '-1.2vw',
+              top: `${(100 - percent) * 50}%`,
+            }}
+          >
+            If you can read this you win!
+          </p>
+        </div>
       </section>
     </div>
   )
